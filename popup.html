@@ -42,6 +42,15 @@
         </div>
 
         <div id="commit_mode" hidden>
+          <!-- LIG-WEEK-UI -->
+          <div id="lig_week_ui" style="margin: 12px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; text-align: left;">
+            <label for="lig_week_select" style="display: block; font-weight: 700; margin-bottom: 6px;">LIG 알고리즘 스터디 · 주차</label>
+            <select id="lig_week_select" class="ui fluid dropdown" style="width:100%; padding: 7px; margin-bottom: 7px;"></select>
+            <p id="lig_week_branch" style="font-size: 12px; margin: 6px 0; overflow-wrap: anywhere;"></p>
+            <button type="button" id="lig_week_save" class="ui small primary button" style="width: 100%; margin: 4px 0;">주차 적용 · 브랜치 확인/생성</button>
+            <p id="lig_week_status" role="status" aria-live="polite" style="font-size: 12px; margin-top: 8px; overflow-wrap: anywhere;"></p>
+          </div>
+
           <p id="repo_url" class="ui small header" style="margin-top: 5px; margin-bottom: 6px !important"></p>
           <div class="ui small header" style="margin-bottom: 5px; margin-top: 0px !important">
             <span data-i18n="popup.wantMore">Want more features?</span>
@@ -68,6 +77,7 @@
 
     <script src="scripts/i18n.js"></script>
     <script src="scripts/oauth2.js"></script>
+        <script src="scripts/lig-week.js"></script>
     <script type="text/javascript" src="popup.js"></script>
   </body>
 </html>

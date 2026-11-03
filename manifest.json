@@ -117,6 +117,7 @@
         "scripts/utils/languageMigration.js",
         "scripts/utils/languageExtension.js",
         "scripts/storage.js",
+        "scripts/lig-week.js",
         "scripts/enable.js",
         "scripts/programmers/variables.js",
         "scripts/programmers/util.js",

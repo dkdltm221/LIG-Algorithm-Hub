@@ -175,46 +175,52 @@ function isResultModalOpen() {
 }
 
 /* 파싱 직후 실행되는 함수 (enqueueUpload 가 한 번에 하나씩 호출한다) */
+
 async function beginUpload(bojData, attempt) {
-  log('bojData', bojData);
-  if (isNotEmpty(bojData)) {
-    const stats = await getStats();
-    const hook = await getHook();
-    const token = await getToken();
-
-    const currentVersion = stats.version;
-    /* 버전 차이가 발생하거나, 해당 hook에 대한 데이터가 없는 경우 localstorage의 Stats 값을 업데이트하고, version을 최신으로 변경한다 */
-    if (isNull(currentVersion) || currentVersion !== getVersion() || isNull(await getStatsSHAfromPath(hook))) {
-      await versionUpdate();
-    }
-
-    /* 현재 제출하려는 소스코드가 기존 업로드한 내용과 같다면 중지 */
-    /* 선언 없이 대입하면 전역 변수가 되어, 겹쳐 실행되는 다른 업로드가 비교 도중 값을 바꿀 수 있다 */
-    const cachedSHA = await getStatsSHAfromPath(`${hook}/${bojData.directory}/${bojData.fileName}`);
-    const calcSHA = calculateBlobSHA(bojData.code);
-    log('cachedSHA', cachedSHA, 'calcSHA', calcSHA)
-
-    if (isNull(cachedSHA)) {
-      /* 로컬 캐시가 없는 경우 원격 저장소에서 파일 존재 여부 실시간 확인 */
-      const remoteFile = await getFile(hook, token, `${bojData.directory}/${bojData.fileName}`);
-      if (remoteFile && remoteFile.sha === calcSHA) {
-        markUploadedCSS(stats.branches, bojData.directory, attempt);
-        console.log('원격 저장소에 동일한 파일이 존재하여 업로드를 건너뜁니다.');
-        return;
-      }
-      /* GitHub에서 파일이 삭제되거나 없는 경우, 새 업로드로 처리 */
-      console.log('캐시된 SHA가 없습니다. 새로 업로드합니다.');
-    } else if (cachedSHA == calcSHA) {
-      markUploadedCSS(stats.branches, bojData.directory, attempt);
-      console.log(`현재 제출번호를 업로드한 기록이 있습니다. problemIdID ${bojData.problemId}`);
-      return;
-    }
-    /* 신규 제출 번호라면 새롭게 커밋  */
-    await uploadOneSolveProblemOnGit(bojData, (branches, directory) => markUploadedCSS(branches, directory, attempt));
-  } else {
-    console.error('[BaekjoonHub] 프로그래머스 파싱 결과가 비어 있어 업로드하지 않습니다.', bojData);
+  // LIG-WEEK-BEGIN: 기본 브랜치/캐시가 아닌 제출 당시 주차 브랜치 기준으로 검사
+  if (!bojData || typeof bojData.code !== 'string' || !bojData.code.trim()) {
+    console.error('[LIG-HUB] 소스 코드 파싱 실패', bojData);
     markUploadFailedCSS(attempt);
+    return;
   }
+
+  const hook = await getHook();
+  const token = await getToken();
+  if (hook !== LIG_REPO) throw new Error('[LIG-HUB] 잘못된 저장소: ' + hook);
+  if (!token) throw new Error('[LIG-HUB] GitHub 인증이 필요합니다.');
+
+  const week = String(bojData.directory || '').split('/')[0];
+  const branch = ligBranchForWeek(week);
+  const expected = week + '/PGS' + String(bojData.problemId);
+  if (bojData.directory !== expected ||
+      bojData.fileName !== LIG_MEMBER + '.cpp' ||
+      String(bojData.language_extension).replace(/^\./, '').toLowerCase() !== 'cpp') {
+    throw new Error('[LIG-HUB] C++ 파일명/문제 경로가 올바르지 않습니다.');
+  }
+  await ligEnsureWeekBranch(token, hook, week);
+
+  const filepath = bojData.directory + '/' + bojData.fileName;
+  const remoteFile = await githubRequest(
+    'https://api.github.com/repos/' + hook + '/contents/' + filepath + '?ref=' + encodeURIComponent(branch),
+    {
+      headers: {
+        Authorization: 'token ' + token,
+        Accept: 'application/vnd.github.v3+json',
+      },
+    },
+    { notFoundAsNull: true }
+  );
+
+  if (remoteFile && remoteFile.sha === calculateBlobSHA(bojData.code)) {
+    console.log('[LIG-HUB] 동일한 코드가 있어 업로드 생략:', filepath);
+    markUploadedCSS({ [hook]: branch }, bojData.directory, attempt);
+    return;
+  }
+
+  await uploadOneSolveProblemOnGit(
+    bojData,
+    (branches, directory) => markUploadedCSS(branches, directory, attempt)
+  );
 }
 
 async function versionUpdate() {

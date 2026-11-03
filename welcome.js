@@ -303,7 +303,22 @@ $id('hook_button').addEventListener('click', () => {
             errorEl.hidden = false;
             successEl.hidden = true;
           } else {
-            linkRepo(token, `${username}/${repositoryName()}`, false);
+            
+const input = document.getElementById('name').value.trim();
+
+const repoPath = input
+  .replace(/^https?:\/\/github\.com\//, '')
+  .replace(/\.git\/?$/, '')
+  .replace(/\/$/, '');
+
+const fullRepoName = repoPath.includes('/')
+  ? repoPath
+  : `${username}/${repoPath}`;
+
+console.log('[LIG-HUB] 연결할 저장소:', fullRepoName);
+
+linkRepo(token, fullRepoName);
+
           }
         });
       }

@@ -156,6 +156,15 @@ class GitHub {
    * @returns {Promise<{commitSHA: string, parentSHA: string}>}
    */
   async commitTreeItems(branch, treeItems, message) {
+    // LIG-WEEK-COMMIT-GUARD: 팀 저장소에는 선택한 개인 브랜치의 C++ 풀이 하나만 허용
+    if (this.hook === 'codehooni/lig-ssen-algo-5th') {
+      const m = /^yunbin\/(week[0-9]{2})$/.exec(String(branch));
+      const path = treeItems?.length === 1 ? String(treeItems[0]?.path || '') : '';
+      const pm = /^(week[0-9]{2})\/PGS([0-9]+)\/yunbin\.cpp$/.exec(path);
+      if (!m || !pm || m[1] !== pm[1] || message !== pm[1] + ': PGS' + pm[2] + ' 풀이') {
+        throw new Error('[LIG-HUB] 팀 저장소 보호: 개인 주차 브랜치의 PGS C++ 풀이 외 커밋은 차단합니다.');
+      }
+    }
     for (let attempt = 1; ; attempt += 1) {
       const { refSHA, ref } = await this.getReference(branch);
       const treeData = await this.createTree(refSHA, treeItems);

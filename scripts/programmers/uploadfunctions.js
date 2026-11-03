@@ -37,27 +37,43 @@ async function uploadOneSolveProblemOnGit(bojData, cb) {
  * @param {string} commitMessage - 커밋 메시지
  * @param {function} cb - 콜백 함수 (ex. 업로드 후 로딩 아이콘 처리 등)
  */
-async function upload(token, hook, sourceText, readmeText, directory, filename, commitMessage, cb) {
-  /* 업로드 후 커밋 */
-  const git = new GitHub(hook, token);
-  const default_branch = await git.getDefaultBranchOnRepo();
-  const source = await git.createBlob(sourceText, `${directory}/${filename}`); // 소스코드 파일
-  const readme = await git.createBlob(readmeText, `${directory}/README.md`); // readme 파일
-  // 브랜치는 fast-forward 로만 옮긴다 — 다른 탭이 그 사이 커밋했으면 그 위에 다시 커밋한다 (commitTreeItems 참고)
-  await git.commitTreeItems(default_branch, [source, readme], commitMessage);
 
-  /* stats의 값을 갱신합니다. (저장 직전에 다시 읽어 다른 탭의 기록을 덮지 않는다) */
-  const stats = await recordUploadInStats(hook, default_branch, [source, readme]);
-  // 콜백 함수 실행
-  if (typeof cb === 'function') {
-    cb(stats.branches, directory);
+async function upload(token, hook, sourceText, readmeText, directory, filename, commitMessage, cb) {
+  // LIG-WEEK-UPLOAD: 주차는 제출 당시 경로에 고정한다.
+  const match = String(directory).match(/^(week(?:0[1-9]|[1-9][0-9]))\/PGS(\d+)$/);
+  if (!match || filename !== LIG_MEMBER + '.cpp') {
+    throw new Error('[LIG-HUB] 잘못된 저장 경로: ' + directory + '/' + filename);
   }
+  const [_, week, problemId] = match;
+  if (commitMessage !== week + ': PGS' + problemId + ' 풀이') {
+    throw new Error('[LIG-HUB] 커밋 메시지와 업로드 주차가 일치하지 않습니다.');
+  }
+  if (hook !== LIG_REPO) throw new Error('[LIG-HUB] 허용되지 않은 저장소: ' + hook);
+  if (typeof sourceText !== 'string' || !sourceText.trim()) {
+    throw new Error('[LIG-HUB] 소스 코드가 비어 있습니다.');
+  }
+
+  const { branch } = await ligEnsureWeekBranch(token, hook, week);
+  const git = new GitHub(hook, token);
+  const source = await git.createBlob(sourceText, directory + '/' + filename);
+  // 팀 레포는 풀이 코드만 제출. 문제 지문을 포함하는 README는 업로드하지 않음.
+  await git.commitTreeItems(branch, [source], commitMessage);
+  await recordUploadInStats(hook, branch, [source]);
+  console.log('[LIG-HUB] 업로드 성공:', branch, directory + '/' + filename);
+  if (typeof cb === 'function') cb({ [hook]: branch }, directory);
 }
 
 /**
- * 프로그래머스에서 맞은 문제 전체를 GitHub에 일괄 업로드합니다.
+ * 전체 업로드: 스터디 모드에서는 사용하지 않습니다.
  */
 async function uploadAllSolvedProblemProgrammers() {
+  // LIG-WEEK-BULK-DISABLED: 팀 저장소에 이전 풀이/문제 지문이 올라가지 않도록 차단
+  console.warn('[LIG-HUB] 스터디 모드에서 전체 업로드는 비활성화되어 있습니다.');
+  return;
+    console.warn(
+    '[LIG-HUB] 전체 업로드 기능은 테스트 중 비활성화'
+  );
+  return;
   const tree_items = [];
   const zip = new JSZip();
   try {

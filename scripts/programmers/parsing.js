@@ -77,17 +77,25 @@ async function parseData() {
 
 async function makeData(origin) {
   const { problem_description, problemId, level, result_message, division, language_extension, title, runtime, memory, code, language, link } = origin;
-  const directory = await buildDirectory('programmers', {
-    platform: '프로그래머스',
-    level,
-    id: problemId,
-    title: convertSingleCharToDoubleChar(title),
-    language,
-    _defaultDir: `프로그래머스/${level}/${problemId}. ${convertSingleCharToDoubleChar(title)}`,
-  });
+  
   const levelWithLv = `${level}`.includes('lv') ? level : `lv${level}`.replace('lv', 'level ');
-  const message = `[${levelWithLv}] Title: ${title}, Time: ${runtime}, Memory: ${memory} -BaekjoonHub`;
-  const fileName = `${convertSingleCharToDoubleChar(title)}.${language_extension}`;
+ 
+  // LIG 스터디 전용 설정 (임시 하드코딩)
+  const week = await ligGetWeek();
+  const memberName = LIG_MEMBER;
+
+  // 스터디 폴더 규칙
+  const directory = `${week}/PGS${problemId}`;
+
+  // 스터디 커밋 규칙
+  const message = `${week}: PGS${problemId} 풀이`;
+
+  // C++ 파일명
+  const fileName = `${memberName}.cpp`;
+
+  console.log('[LIG-HUB] 저장 경로:', `${directory}/${fileName}`);
+  console.log('[LIG-HUB] 커밋 메시지:', message);
+
   const dateInfo = getDateString(new Date(Date.now()));
   // prettier-ignore
   const readme =
@@ -105,7 +113,15 @@ async function makeData(origin) {
     + `### 문제 설명\n\n`
     + `${problem_description}\n\n`
     + `> 출처: 프로그래머스 코딩 테스트 연습, https://school.programmers.co.kr/learn/challenges`;
-  return { problemId, directory, message, fileName, readme, code };
+  return {
+    problemId,
+    directory,
+    message,
+    fileName,
+    readme,
+    code,
+    language_extension
+  };
 }
 
 /**
